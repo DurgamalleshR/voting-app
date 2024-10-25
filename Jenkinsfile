@@ -1,6 +1,6 @@
 pipeline {
     agent any
-  environment {
+    environment {
         ARM_CLIENT_ID       = "7e9b470a-90f2-4ed5-9876-7545df39ebbb"
         ARM_CLIENT_SECRET   = "fiw8Q~WaJdB0Jzj3Oyss3hBFX54.9HtJ6K1eYcyj"
         ARM_SUBSCRIPTION_ID = "1f2450e7-ac4d-4c20-b942-4cc2893a3e03"
@@ -26,16 +26,6 @@ pipeline {
             steps {
                 sh 'terraform apply -input=false tfplan'
             }
-        }
-    }
-    post {
-        always {
-            archiveArtifacts artifacts: 'terraform.tfstate', allowEmptyArchive: true
-        }
-        failure {
-            mail to: 'team@example.com',
-                subject: "Terraform Apply Failed",
-                body: "Please check the Jenkins job."
         }
     }
 }
