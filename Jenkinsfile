@@ -1,31 +1,83 @@
 pipeline {
     agent any
+
     environment {
-        ARM_CLIENT_ID       = "7e9b470a-90f2-4ed5-9876-7545df39ebbb"
-        ARM_CLIENT_SECRET   = "fiw8Q~WaJdB0Jzj3Oyss3hBFX54.9HtJ6K1eYcyj"
-        ARM_SUBSCRIPTION_ID = "1f2450e7-ac4d-4c20-b942-4cc2893a3e03"
-        ARM_TENANT_ID       = "d5fc86d5-b2e4-49f8-93c0-a9e4d09e5499"
+       
+        RECIPIENTS = 'durgamalleshreddy@gmail.com'
     }
+
     stages {
         stage('Checkout') {
             steps {
-                git url: 'https://github.com/DurgamalleshR/voting-app/tree/master/aks', branch: 'main'
+                // Checkout the code from your Git repository
+                checkout scm
             }
         }
-        stage('Terraform Init') {
+
+        stage('Login to AWS') {
             steps {
-                sh 'terraform init'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'Aws-credentials']]) {
+                    script {
+                        // Verify AWS credentials
+                        sh 'aws sts get-caller-identity'
+                    }
+                }
             }
         }
-        stage('Terraform Plan') {
+
+        stage('Initialize Terraform') {
             steps {
-                sh 'terraform plan -out=tfplan'
+                dir('path/to/terraform/dir') { // Change to your Terraform directory
+                    script {
+                        // Initialize Terraform
+                        sh 'terraform init'
+                    }
+                }
             }
         }
-        stage('Terraform Apply') {
+
+        stage('Create EKS Cluster') {
             steps {
-                sh 'terraform apply -input=false tfplan'
+                dir('path/to/terraform/dir') { // Change to your Terraform directory
+                    script {
+                        // Apply Terraform code to create EKS cluster
+                        sh 'terraform apply -auto-approve'
+                    }
+                }
             }
+        }
+
+        stage('Deploy Kubernetes Manifests') {
+            steps {
+                dir('path/to/k8s/dir') { // Change to your Kubernetes directory
+                    script {
+                        // Configure kubectl to use the newly created EKS cluster
+                        sh 'aws eks update-kubeconfig --name <your-eks-cluster-name>'
+
+                        // Deploy your Kubernetes manifests
+                        sh 'kubectl apply -f <path-to-your-manifests-directory>'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Successfully created EKS cluster and deployed manifests.'
+            emailext(
+                subject: "SUCCESS: EKS Cluster Creation and Deployment",
+                body: "The pipeline was successful. EKS Cluster has been created and manifests have been deployed.",
+                to: "${RECIPIENTS}"
+            )
+        }
+        failure {
+            echo 'Failed to create EKS cluster or deploy manifests.'
+            emailext(
+                subject: "FAILURE: EKS Cluster Creation and Deployment",
+                body: "The pipeline has failed. Please check the logs for details.",
+                to: "${RECIPIENTS}"
+            )
         }
     }
 }
